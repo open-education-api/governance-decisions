@@ -48,7 +48,7 @@ jobs:
           mkdir -p target/governance/decisions/_media
           rsync -a --delete adr/ target/governance/decisions/adr/
           rsync -a --delete _media/ target/governance/decisions/_media/
-          rsync -a index.html
+          rsync -a index.html target/governance/decisions
 
       # Commit and push only when the sync introduced changes.
       - name: Commit and push if there are changes
