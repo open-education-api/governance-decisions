@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+DIR="adr"
+OUT="${1:-_sidebar.md}"
+
+tmpfile="$(mktemp)"
+
+for file in "$DIR"/*.md; do
+  [ "$file" = "$OUT" ] && continue
+
+  adr="$(awk -F': *' '/^adr:/ {print $2; exit}' "$file")"
+  title="$(awk -F': *' '/^title:/ {print $2; exit}' "$file")"
+
+  [ -z "$adr" ] && continue
+  [ -z "$title" ] && title="$(basename "$file")"
+
+  name="$(basename "$file")"
+
+  printf "%06d|* [%s](%s)\n" "$adr" "$title" "$name" >> "$tmpfile"
+done
+
+echo "# # [Architecture Decision Records](_sidebar.md)" > "$OUT"
+echo >> "$OUT"
+sort -n "$tmpfile" | cut -d'|' -f2- >> "$OUT"
+
+rm "$tmpfile"

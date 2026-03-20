@@ -1,0 +1,24 @@
+# This workflow runs markdownlint on the documentation.
+
+name: Markdown lint
+
+on:
+  pull_request:
+    branches:
+      - main
+      - release/*
+
+jobs:
+  markdownlint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      # Checkout the repository.
+      - uses: actions/checkout@v4
+
+      # Run markdownlint on all documentation files.
+      - name: Run markdownlint-cli2
+        run: npx markdownlint-cli2 "**/*.md"
+        
