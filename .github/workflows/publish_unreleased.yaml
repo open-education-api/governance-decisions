@@ -9,8 +9,12 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   publish:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
     steps:
@@ -20,6 +24,20 @@ jobs:
       # Generate TOC before publishing.
       - name: Generate TOC
         run: bash ./create_toc adr adr/_sidebar.md
+
+      # Commit and push the generated sidebar back to this repository.
+      - name: Commit and push sidebar if changed
+        run: |
+          set -euo pipefail
+          if git status --porcelain | grep -q .; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add adr/_sidebar.md
+            git commit -m "Update ADR sidebar [skip ci]"
+            git push origin HEAD:main
+          else
+            echo "No sidebar changes to push."
+          fi
 
       # Create a GitHub App token used to push to the publication repository.
       - name: Create GitHub App installation token
@@ -64,3 +82,4 @@ jobs:
           else
             echo "No changes to publish."
           fi
+          
