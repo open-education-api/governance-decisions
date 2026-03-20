@@ -17,6 +17,10 @@ jobs:
       # Checkout this repository containing the ADRs.
       - uses: actions/checkout@v4
 
+      # Generate TOC before publishing.
+      - name: Generate TOC
+        run: bash ./create_toc adr adr/_sidebar.md
+
       # Create a GitHub App token used to push to the publication repository.
       - name: Create GitHub App installation token
         id: app-token
@@ -41,6 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p target/governance/decisions/adr
+          mkdir -p target/governance/decisions/_media
           rsync -a --delete adr/ target/governance/decisions/adr/
           rsync -a --delete _media/ target/governance/decisions/_media/
           rsync -a index.html

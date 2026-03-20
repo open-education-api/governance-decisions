@@ -1,7 +1,18 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-DIR="adr"
-OUT="${1:-_sidebar.md}"
+if [ "$#" -ne 2 ]; then
+  echo "Usage: $0 <documents_dir> <index_md_file>" >&2
+  exit 1
+fi
+
+DIR="$1"
+OUT="$2"
+
+if [ ! -d "$DIR" ]; then
+  echo "Error: directory '$DIR' does not exist" >&2
+  exit 1
+fi
 
 tmpfile="$(mktemp)"
 

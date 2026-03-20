@@ -53,6 +53,9 @@ communicated via the standard HTTP `Accept` header together with the
    header, optionally including zero or one consumer type and version, and
    the server determines whether a compatible representation can be returned)
 
+For use of the `Accept` header, see
+[RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html).
+
 ## Considerations
 
 Several approaches for communicating version information were considered.
