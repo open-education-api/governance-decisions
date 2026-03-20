@@ -30,7 +30,7 @@ for file in "$DIR"/*.md; do
   printf "%06d|* [%s](%s)\n" "$adr" "$title" "$name" >> "$tmpfile"
 done
 
-echo "# # [Architecture Decision Records](_sidebar.md)" > "$OUT"
+echo "# [Architecture Decision Records](_sidebar.md)" > "$OUT"
 echo >> "$OUT"
 sort -n "$tmpfile" | cut -d'|' -f2- >> "$OUT"
 
