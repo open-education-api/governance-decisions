@@ -18,11 +18,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout this repository containing the ADRs.
-      - uses: actions/checkout@v4
-
-      # Create a GitHub App token used to push to this repository and the
-      # publication repository.
+      # 0) Create an installation token for the publishing GitHub App.
+      #    This token must be used for ALL pushes (both this repo and the publication repo).
       - name: Create GitHub App installation token
         id: app-token
         uses: actions/create-github-app-token@v2
@@ -34,26 +31,36 @@ jobs:
             governance-decisions
             open-education-api.github.io
 
-      # Generate TOC before publishing.
+
+      # 1) Checkout this repository.
+      #    - fetch-depth: 0 ensures full history.
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+      
+      # 2) Generate TOC before publishing.
       - name: Generate TOC
         run: bash ./create_toc adr adr/_sidebar.md
 
-      # Commit and push the generated sidebar back to this repository.
-      - name: Commit and push sidebar if changed
+      # 3) Add sidebar file
+      - name: Commit generated sidebar to main
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           set -euo pipefail
           if git status --porcelain | grep -q .; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git remote set-url origin https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/${{ github.repository }}.git
             git add adr/_sidebar.md
-            git commit -m "Update ADR sidebar [skip ci]"
-            git push origin HEAD:main
+            git commit -m "Update sidebar"
+            git push
           else
-            echo "No sidebar changes to push."
+            echo "No changes to publish."
           fi
-
-      # Checkout the publication repository.
+          
+      # 4) Checkout the publication repository.
       - name: Checkout target repository
         uses: actions/checkout@v4
         with:
@@ -61,7 +68,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           path: target
 
-      # Sync ADRs from /adr to the publication folder.
+      # 5) Sync ADRs from /adr to the publication folder.
       - name: Sync ADRs to governance-decisions
         run: |
           set -euo pipefail
@@ -71,8 +78,10 @@ jobs:
           rsync -a --delete _media/ target/governance/decisions/_media/
           rsync -a index.html target/governance/decisions
 
-      # Commit and push only when the sync introduced changes.
-      - name: Commit and push if there are changes
+      # 6) Commit and push only if there are changes in the publication repo.
+      - name: Commit and push publication repo changes (if any)
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           set -euo pipefail
           cd target
@@ -80,7 +89,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add -A
-            git commit -m "Publish ADRs -> governance/decisions/adr"
+            git commit -m "Publish ADR documents"
             git push
           else
             echo "No changes to publish."
