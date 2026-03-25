@@ -50,14 +50,16 @@ jobs:
           APP_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           set -euo pipefail
-
-          git remote set-url origin "https://x-access-token:${APP_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --prune origin "+refs/heads/*:refs/remotes/origin/*"
-
-          git add adr/_sidebar.md
-          git commit -m "Add generated sidebar for main" || exit 0
-          git push
-
+          if git status --porcelain | grep -q .; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add adr/_sidebar.md
+            git commit -m "Update sidebar"
+            git push
+          else
+            echo "No changes to publish."
+          fi
+          
       # 4) Checkout the publication repository.
       - name: Checkout target repository
         uses: actions/checkout@v4
@@ -83,9 +85,6 @@ jobs:
         run: |
           set -euo pipefail
           cd target
-
-          git remote set-url origin "https://x-access-token:${APP_TOKEN}@github.com/open-education-api/open-education-api.github.io.git"
-
           if git status --porcelain | grep -q .; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
