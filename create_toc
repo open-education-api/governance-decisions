@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$#" -ne 2 ]; then
-  echo "Usage: $0 <documents_dir> <index_md_file>" >&2
+if [ "$#" -ne 3 ]; then
+  echo "Usage: $0 <documents_dir> <index_md_file> <all_adrs_md_file>" >&2
   exit 1
 fi
 
 DIR="$1"
 OUT="$2"
+ALL_ADRS_OUT="$3"
 
 if [ ! -d "$DIR" ]; then
   echo "Error: directory '$DIR' does not exist" >&2
@@ -15,23 +16,44 @@ if [ ! -d "$DIR" ]; then
 fi
 
 tmpfile="$(mktemp)"
+tablefile="$(mktemp)"
 
 for file in "$DIR"/*.md; do
   [ "$file" = "$OUT" ] && continue
+  [ "$file" = "$ALL_ADRS_OUT" ] && continue
+  [ -f "$file" ] || continue
 
   adr="$(awk -F': *' '/^adr:/ {print $2; exit}' "$file")"
   title="$(awk -F': *' '/^title:/ {print $2; exit}' "$file")"
+  status="$(awk -F': *' '/^status:/ {print $2; exit}' "$file")"
+  status_date="$(awk -F': *' '/^date:/ {print $2; exit}' "$file")"
 
   [ -z "$adr" ] && continue
   [ -z "$title" ] && title="$(basename "$file")"
+  [ -z "$status" ] && status="-"
+  [ -z "$status_date" ] && status_date="-"
 
   name="$(basename "$file")"
 
   printf "%06d|* [%s](%s)\n" "$adr" "$title" "$name" >> "$tmpfile"
+  printf "%06d|%s|%s|%s|%s\n" \
+    "$adr" "$adr" "[$title]($name)" "$status" "$status_date" >> "$tablefile"
 done
 
 echo "# [Architecture Decision Records](_sidebar.md)" > "$OUT"
 echo >> "$OUT"
 sort -n "$tmpfile" | cut -d'|' -f2- >> "$OUT"
 
-rm "$tmpfile"
+{
+  echo "# Architecture Decision Records overview"
+  echo
+  echo "This file provides an overview of all Architecture Decision Records."
+  echo
+  echo "| ADR number | ADR title | ADR status | Status date |"
+  echo "| --- | --- | --- | --- |"
+  sort -n "$tablefile" | while IFS='|' read -r _ adr title status status_date; do
+    echo "| $adr | $title | $status | $status_date |"
+  done
+} > "$ALL_ADRS_OUT"
+
+rm "$tmpfile" "$tablefile"
