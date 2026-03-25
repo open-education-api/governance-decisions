@@ -42,7 +42,7 @@ jobs:
       
       # 2) Generate TOC before publishing.
       - name: Generate TOC
-        run: bash ./create_toc adr adr/_sidebar.md
+        run: bash ./create_toc adr adr/_sidebar.md adr/README.md
 
       # 3) Add sidebar file
       - name: Commit generated sidebar to main
@@ -53,7 +53,7 @@ jobs:
           if git status --porcelain | grep -q .; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add adr/_sidebar.md
+            git add adr/_sidebar.md adr/README.md
             git commit -m "Update sidebar"
             git push
           else
