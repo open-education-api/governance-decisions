@@ -32,13 +32,13 @@ Therefore, either:
 
 ## Option 1: Keep alignment with OEAPI major versions
 
-**Pros**
+### Pros option 1
 
 - clear and simple mapping between consumer and OEAPI versions
 - easy to understand for integrators which OEAPI major version is used
 - consistent with the original design intention
 
-**Cons**
+### Cons option 1
 
 - breaking changes may appear in minor versions
 - reduces trust in version semantics
@@ -48,7 +48,7 @@ Therefore, either:
 
 ## Option 2: Use strict semantic versioning for consumers
 
-**Pros**
+### Pros option 2
 
 - breaking changes are always clearly signalled via major versions
 - minor versions remain safe to adopt
@@ -56,7 +56,7 @@ Therefore, either:
 - improves predictability and tooling support
 - consumers can be used across different OEAPI versions
 
-**Cons**
+### Cons option 2
 
 - consumer version no longer directly reflects OEAPI major version
 - requires additional mechanism to express OEAPI compatibility
