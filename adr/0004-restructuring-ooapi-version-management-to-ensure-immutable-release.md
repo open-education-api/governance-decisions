@@ -1,5 +1,5 @@
 ---
-title: Version Management Restructuring for the OOAPI Specification
+title: Restructuring OOAPI Version Management to Ensure Immutable Releases
 adr: 0004
 status: Accepted
 date: 2025-12-16
@@ -10,7 +10,7 @@ informed:
   - Community
 ---
 
-# Version Management Restructuring for the OOAPI Specification
+# Restructuring OOAPI Version Management to Ensure Immutable Release
 
 ## Status: Accepted
 
