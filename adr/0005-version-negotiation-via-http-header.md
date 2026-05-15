@@ -53,7 +53,7 @@ communicated via the standard HTTP `Accept` header together with the
 
 6. Versioning via the HTTP `Accept` header without standard HTTP negotiation
    (the client sends exactly one requested OEAPI version in the `Accept`
-   header, optionally including zero or one consumer type incombination with
+   header, optionally including zero or one consumer type in combination with
    consumer version, and the server determines whether a compatible
    representation can be returned)
 
