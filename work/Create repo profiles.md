@@ -8,7 +8,7 @@ Profiles and consumers are maintained outside the main OEAPI repository. They ar
 
 Create a new GitHub repository for the profile or for a set of related profiles and consumers.
 
-Examples:
+Example:
 
 ```text
 oeapi-profile-example
@@ -24,7 +24,7 @@ The repository should contain only:
 
 The repository is based on a specific OEAPI version. The OEAPI specification is included as a Git submodule in the `base` directory, while the repository itself contains only the profile and consumer overlays required to extend that version.
 
-## 2. Add OEAPI as base specification
+## 2. Add the OEAPI base specification
 
 Add the OEAPI specification as a Git submodule in the `base` directory.
 
@@ -62,7 +62,7 @@ You are in 'detached HEAD' state. You can look around, make experimental
 changes and commit them, and you can discard any commits you make in this
 state without impacting any branches by switching back to a branch.
 
-If you want to create a new branch to retain commits you create, you may
+If you want to create a new branch to retain the commits you make, you may
 do so (now or later) by using -c with the switch command. Example:
 
   git switch -c <new-branch-name>
@@ -71,12 +71,13 @@ Or undo this operation with:
 
   git switch -
 
-Turn off this advice by setting config variable advice.detachedHead to false
+Turn off this advice by setting the configuration variable
+advice.detachedHead to false
 
 HEAD is now at 60be9d9 Merge pull request #621 from open-education-api/Update-zudoku-main-page
 ```
 
-The contents of `base/oeapi` are read-only. When the profile is upgraded to a newer OEAPI version, update only the submodule reference.
+The contents of `base/oeapi` are read-only. When upgrading the profile to a newer OEAPI version, update only the submodule reference.
 
 ## 3. Create the profile directory
 
@@ -102,10 +103,10 @@ profile-example/
 │   │       └── consumer.yaml
 │   ├── paths/
 │   └── schemas/
-└── generated/ (not commited to github)
+└── generated/ (not committed to GitHub)
 ```
 
-The profile directory contains everything that belongs to that profile. Do NOT duplicate source files into the source folder.
+The profile directory contains everything related to that profile. Do **NOT** duplicate source files in the `source` directory.
 
 ## 4. Add profile metadata
 
@@ -118,7 +119,7 @@ profileName: profile-example
 profileVersion: v1.0
 oeapi:
   oeapiPath: ../base/oeapi
-  oeapiMinVersions: 
+  oeapiMinVersions:
     - v6.1
     - v7.0
 
@@ -131,14 +132,14 @@ The profile metadata defines:
 
 - the profile name
 - the profile version
-- the minimum OEAPI version required for the profile
+- the minimum OEAPI version required by the profile
 - the consumers used by the profile
 
 A profile may reference one or more consumers.
 
 ## 5. Add consumer metadata
 
-Create `consumer.yaml` in the consumer folder `source/consumers/consumer-example`.
+Create `consumer.yaml` in `source/consumers/consumer-example`.
 
 Example:
 
@@ -150,7 +151,6 @@ consumerVersion: v2.1
 oeapiMinVersions:
   - v6.1
   - v7.0
-
 ```
 
 The consumer metadata defines:
@@ -165,7 +165,7 @@ A consumer may support multiple OEAPI major versions. For each supported major v
 
 Profile overlays describe profile-specific changes to OEAPI.
 
-Typical profile changes are:
+Typical profile changes include:
 
 - making optional attributes required
 - restricting allowed values
@@ -189,19 +189,19 @@ properties:
   validTo: null
 ```
 
-This overlay does not redefine the complete `Course` schema. It only defines the differences relative to OEAPI. setting a property to null, will delete the property from the specifications
+This overlay does not redefine the entire `Course` schema. It defines only the differences relative to OEAPI. Setting a property to `null` removes that property from the generated specification.
 
 ```yaml
 # profile-example/source/schemas/CourseProperties.yaml
 
 properties:
   consumer:
-      allOf:
-        - $ref: './Consumer.yaml'
-        - $ref: '../consumers/consumer-example/CourseConsumerExample.yaml'
-````
+    allOf:
+      - $ref: './Consumer.yaml'
+      - $ref: '../consumers/consumer-example/CourseConsumerExample.yaml'
+```
 
-This overlay does not redefine the complete `CourseProperties` schema. It only defines the differences relative to OEAPI. setting a property to null, will delete the property from the specifications
+This overlay does not redefine the entire `CourseProperties` schema. It defines only the differences relative to OEAPI.
 
 ```yaml
 # profile-example/source/paths/CourseInstance.yaml
@@ -219,7 +219,7 @@ get:
             $ref: '../schemas/Course.yaml'
 ```
 
-This overlay does not redefine the complete `CourseInstance` path. It only defines the differences relative to OEAPI. setting a parameter with _delete: true, will delete the property from the specifications
+This overlay does not redefine the entire `CourseInstance` path. It defines only the differences relative to OEAPI. Setting a parameter to `_delete: true` removes that parameter from the generated specification.
 
 ## 7. Add specification metadata
 
@@ -228,26 +228,26 @@ During the overlay process, the following metadata is added to `generated/spec.y
 Example:
 
 ```yaml
-  x-profile:
-    profileName: profile-example
-    profileVersion: v1.0.0
-    oeapiMinVersions:
-      - v6.1
-      - v7.0
-    consumers:
-      - consumerName: consumer-example
-        consumerKey: consumer-example
-        consumerVersion: v2.1
-        oeapiMinVersions:
-          - v6.1
-          - v7.0
+x-profile:
+  profileName: profile-example
+  profileVersion: v1.0.0
+  oeapiMinVersions:
+    - v6.1
+    - v7.0
+  consumers:
+    - consumerName: consumer-example
+      consumerKey: consumer-example
+      consumerVersion: v2.1
+      oeapiMinVersions:
+        - v6.1
+        - v7.0
 ```
 
-This metadata is added to the resulting specification so it is clear which profile and consumer versions were used.
+This metadata is added to the generated specification to indicate which profile and consumer versions were used.
 
 ## 8. Generate the resulting specification
 
-The resulting specification is created by applying the overlays in this order:
+The resulting specification is created by applying the overlays in the following order:
 
 ```text
 OEAPI base specification
@@ -256,31 +256,29 @@ Generated OpenAPI specification for this profile
 Bundle the OpenAPI specification
 ```
 
-Recommended to use `node overlay-merger.js <profile>` to create the generated files as below.
+Run `node overlay-merger.js <profile>` to generate the files shown below.
 
 ```text
 profile-example/
-└── generated/ (not commited to github)
+└── generated/ (not committed to GitHub)
     ├── spec.yaml
     ├── paths/
     │   ├── CourseInstance.yaml
-    │   └── <all other source yaml's, as in source merged with the profile>
+    │   └── <all other source YAML files merged with the profile>
     ├── schemas/
     │   ├── Course.yaml
     │   ├── Programme.yaml
-    │   └── <all other source yaml's, as in source merged with the profile>
+    │   └── <all other source YAML files merged with the profile>
     ├── consumers/
     │   └── consumer-example/
     │       ├── consumer.yaml
     │       └── CourseConsumerExample.yaml
-    └── <all other source yaml's, as in source merged with the profile>
+    └── <all other source YAML files merged with the profile>
 ```
 
 Generated files should not be edited manually.
 
 ## 9. Example repository structure
-
-A complete example repository may look like this:
 
 ```text
 oeapi-profile-example/
@@ -301,9 +299,9 @@ oeapi-profile-example/
     │       └── consumer-example/
     │           ├── consumer.yaml
     │           └── CourseConsumerExample.yaml
-    └── generated/ (not commited to github)
+    └── generated/ (not committed to GitHub)
         ├── <generated specification files>
-        └── <after bundling, generated bundle files>
+        └── <bundled specification files>
 ```
 
 ## 10. Maintenance rules
@@ -311,11 +309,11 @@ oeapi-profile-example/
 Use the following rules when maintaining the repository:
 
 - Keep OEAPI in the `base` directory as a read-only Git submodule.
-- Store only differences relative to OEAPI.
+- Store only the differences relative to OEAPI.
 - Do not duplicate the complete OEAPI specification.
 - Define consumers through a profile.
 - Keep profile and consumer versions explicit.
-- Generate the resulting specification from the base and overlays.
+- Generate the resulting specification from the base specification and the overlays.
 - Do not manually edit files in `generated`.
 - Upgrade to a newer OEAPI version by updating the Git submodule and regenerating the specification.
 
@@ -325,7 +323,7 @@ An OEAPI profile and consumer repository contains overlays on top of a specific 
 
 The profile defines which OEAPI version is used, which consumers are included, and which profile-specific changes apply.
 
-The consumer defines only consumer-specific additions.
+A consumer defines only consumer-specific additions.
 
 The final OpenAPI specification is generated from:
 
@@ -333,4 +331,4 @@ The final OpenAPI specification is generated from:
 OEAPI base + profile overlay + consumer overlay
 ```
 
-This keeps the repository small, avoids duplication and makes it clear which OEAPI, profile and consumer versions were used.
+This keeps the repository small, avoids duplication, and makes it clear which OEAPI, profile, and consumer versions were used.
