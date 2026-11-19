@@ -91,6 +91,11 @@ profile-example/
 
 Create the directory structure for the profile.
 
+```text
+mkdir -p source/{consumers/consumer-example,paths,schemas} generated &&
+touch README.md profile.yaml source/consumers/consumer-example/consumer.yaml
+```
+
 Recommended structure:
 
 ```text
@@ -107,6 +112,59 @@ profile-example/
 ```
 
 The profile directory contains everything related to that profile. Do **NOT** duplicate source files in the `source` directory.
+
+Create the gitignore file
+
+```text
+printf '%s\n' \
+  '# =========================' \
+  '# Editor / local tooling' \
+  '# =========================' \
+  '.vscode/' \
+  '' \
+  '# =========================' \
+  '# macOS' \
+  '# =========================' \
+  '.DS_Store' \
+  '._*' \
+  '' \
+  '# =========================' \
+  '# Windows' \
+  '# =========================' \
+  'Thumbs.db' \
+  'Desktop.ini' \
+  '$RECYCLE.BIN/' \
+  '' \
+  '# =========================' \
+  '# Tool-specific' \
+  '# =========================' \
+  '*.drawio.bkp' \
+  '' \
+  '# =========================' \
+  '# Vale-specific' \
+  '# =========================' \
+  '.vale.ini' \
+  'styles/' \
+  '' \
+  '# =========================' \
+  '# Zudoku & Node' \
+  '# =========================' \
+  'dist/' \
+  'node_modules/' \
+  'package-lock.json' \
+  '' \
+  '# =========================' \
+  '# Vacuum' \
+  '# =========================' \
+  'vacuum-*' \
+  '' \
+  '# =========================' \
+  '# Generated and node files' \
+  '# =========================' \
+  'generated/' \
+  'package-lock.json' \
+  'package.json' > .gitignore
+```
 
 ## 4. Add profile metadata
 
@@ -135,6 +193,21 @@ The profile metadata defines:
 - the minimum OEAPI version required by the profile
 - the consumers used by the profile
 
+```text
+printf '%s\n' \
+  'profileName: profile-example' \
+  'profileVersion: v1.0' \
+  'oeapi:' \
+  '  oeapiPath: ../base/oeapi' \
+  '  oeapiMinVersions:' \
+  '    - v6.1' \
+  '    - v7.0' \
+  '' \
+  'consumers:' \
+  '  - consumerName: consumer-example' \
+  '    path: source/consumers/consumer-example' > profile.yaml
+```
+
 A profile may reference one or more consumers.
 
 ## 5. Add consumer metadata
@@ -160,6 +233,17 @@ The consumer metadata defines:
 - the minimum OEAPI versions supported by the consumer
 
 A consumer may support multiple OEAPI major versions. For each supported major version, the specified version represents the minimum supported version within that major version.
+
+```text
+mkdir -p source/consumers/consumer-example &&
+printf '%s\n' \
+  'consumerName: consumer-example' \
+  'consumerKey: consumer-example' \
+  'consumerVersion: v2.1' \
+  'oeapiMinVersions:' \
+  '  - v6.1' \
+  '  - v7.0' > source/consumers/consumer-example/consumer.yaml
+```
 
 ## 6. Add the profile overlay
 
@@ -220,6 +304,41 @@ get:
 ```
 
 This overlay does not redefine the entire `CourseInstance` path. It defines only the differences relative to OEAPI. Setting a parameter to `_delete: true` removes that parameter from the generated specification.
+
+```text
+mkdir -p source/schemas source/paths &&
+
+printf '%s\n' \
+  'required:' \
+  '  - courseId' \
+  '  - name' \
+  '  - primaryCode' \
+  '  - duration' \
+  'properties:' \
+  '  validFrom: null' \
+  '  validTo: null' > source/schemas/Course.yaml &&
+
+printf '%s\n' \
+  'properties:' \
+  '  consumer:' \
+  '    allOf:' \
+  "      - \$ref: './Consumer.yaml'" \
+  "      - \$ref: '../consumers/consumer-example/CourseConsumerExample.yaml'" \
+  > source/schemas/CourseProperties.yaml &&
+
+printf '%s\n' \
+  'get:' \
+  '  parameters:' \
+  '    - name: expand' \
+  '      _delete: true' \
+  '  responses:' \
+  "    '200':" \
+  '      description: OK' \
+  '      content:' \
+  '        application/json:' \
+  '          schema:' \
+  "            \$ref: '../schemas/Course.yaml'" > source/paths/CourseInstance.yaml
+```
 
 ## 7. Add specification metadata
 
