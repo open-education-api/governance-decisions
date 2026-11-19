@@ -42,7 +42,7 @@ jobs:
       
       # 2) Generate TOC before publishing.
       - name: Generate TOC
-        run: bash ./create_toc adr adr/_sidebar.md adr/README.md
+        run: bash ./create_toc adr adr/_sidebar.md adr/home.md
 
       # 3) Add sidebar file
       - name: Commit generated sidebar to main

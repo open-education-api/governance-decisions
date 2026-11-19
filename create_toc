@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
+
+# Exit on errors, unset variables or a failed command in a pipeline.
 set -euo pipefail
 
+# Require the source directory and both Markdown output paths.
 if [ "$#" -ne 3 ]; then
   echo "Usage: $0 <documents_dir> <index_md_file> <all_adrs_md_file>" >&2
   exit 1
@@ -15,19 +18,23 @@ if [ ! -d "$DIR" ]; then
   exit 1
 fi
 
+# Collect index entries and overview rows before sorting them.
 tmpfile="$(mktemp)"
 tablefile="$(mktemp)"
 
 for file in "$DIR"/*.md; do
+  # Skip the generated files and ignore paths that are not regular files.
   [ "$file" = "$OUT" ] && continue
   [ "$file" = "$ALL_ADRS_OUT" ] && continue
   [ -f "$file" ] || continue
 
+  # Read the first occurrence of each metadata field.
   adr="$(awk -F': *' '/^adr:/ {print $2; exit}' "$file")"
   title="$(awk -F': *' '/^title:/ {print $2; exit}' "$file")"
-  status="$(awk -F': *' '/^status:/ {print $2; exit}' "$file")"
+  status="$(awk -F': *' '/^status\:/ {print $2; exit}' "$file")"
   status_date="$(awk -F': *' '/^date:/ {print $2; exit}' "$file")"
 
+  # Include only files with an ADR number and fill in missing metadata.
   [ -z "$adr" ] && continue
   [ -z "$title" ] && title="$(basename "$file")"
   [ -z "$status" ] && status="-"
@@ -35,15 +42,18 @@ for file in "$DIR"/*.md; do
 
   name="$(basename "$file")"
 
+  # Prefix each entry with the ADR number as a numeric sort key.
   printf "%06d|* [%s](%s)\n" "$adr" "$title" "$name" >> "$tmpfile"
   printf "%06d|%s|%s|%s|%s\n" \
     "$adr" "$adr" "[$title]($name)" "$status" "$status_date" >> "$tablefile"
 done
 
-echo "# [Architecture Decision Records](README.md)" > "$OUT"
+# Write the index with links in ADR number order, omitting the sort key.
+echo "# [Architecture Decision Records](home.md)" > "$OUT"
 echo >> "$OUT"
 sort -n "$tmpfile" | cut -d'|' -f2- >> "$OUT"
 
+# Write the overview table in the same order, discarding the sort key.
 {
   echo "# Architecture Decision Records overview"
   echo
@@ -56,4 +66,5 @@ sort -n "$tmpfile" | cut -d'|' -f2- >> "$OUT"
   done
 } > "$ALL_ADRS_OUT"
 
+# Remove the temporary files after writing both outputs.
 rm "$tmpfile" "$tablefile"
