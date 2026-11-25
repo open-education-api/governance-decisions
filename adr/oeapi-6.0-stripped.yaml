@@ -1,0 +1,278 @@
+openapi: 3.1.1
+info:
+  title: OEAPI – Courses & Programmes (minimal example)
+  version: 6.0‑rc.3‑example
+  description: |
+    Minimal OEAPI example showing only the Course and Programme resources.
+    All other objects (learn‑components, buildings, groups, …) have been omitted.
+servers:
+  - url: https://demo01.eduapi.nl/v6
+paths:
+  /courses/{courseId}:
+    get:
+      summary: GET /courses/{courseId}
+      operationId: listCourseById
+      description: Get a single course.
+      tags:
+        - courses
+      parameters:
+        - name: courseId
+          in: path
+          description: Course ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: expand
+          in: query
+          explode: false
+          description: Optional properties to include, separated by a comma
+          required: false
+          style: form
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - programmes
+                - coordinators
+                - instructors
+                - organisation
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.oeapi+json:
+              schema:
+                $ref: '#/components/schemas/Course'
+  /programmes/{programmeId}:
+    get:
+      summary: GET /programmes/{programmeId}
+      operationId: listProgrammeById
+      description: Get a single programme.
+      tags:
+        - programmes
+      parameters:
+        - name: programmeId
+          in: path
+          description: Programme ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: expand
+          in: query
+          explode: false
+          description: Optional properties to include, separated by a comma
+          required: false
+          style: form
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - parent
+                - children
+                - coordinators
+                - instructors
+                - organisation
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.oeapi+json:
+              schema:
+                $ref: '#/components/schemas/Programme'
+components:
+  schemas:
+    # --------------------------------------------------------------------
+    #   Identifier objects
+    # --------------------------------------------------------------------
+    IdentifierEntry:
+      type: object
+      required:
+        - codeType
+        - code
+      properties:
+        codeType:
+          type: string
+          description: Type of the identifier (e.g. “identifier”, “programmeCode”, …)
+        code:
+          type: string
+          description: Human‑readable value of the identifier
+      example:
+        codeType: identifier
+        code: 1234qwe12
+
+    # --------------------------------------------------------------------
+    #   Course
+    # --------------------------------------------------------------------
+    CourseId:
+      type: object
+      description: Unique identifier for a course
+      required:
+        - courseId
+      properties:
+        courseId:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+
+    CourseProperties:
+      type: object
+      description: Core metadata of a course
+      required:
+        - name
+      properties:
+        primaryCode:
+          $ref: '#/components/schemas/IdentifierEntry'
+        name:
+          type: array
+          description: Course titles
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/LanguageTypedString'
+          example:
+            - language: en-GB
+              value: Academic and Professional Writing
+        abbreviation:
+          type:
+            - string
+            - 'null'
+          description: Short internal code (ECTS‑code)
+          maxLength: 256
+          example: INFOMQNM
+        description:
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/LanguageTypedString'
+
+    Course:
+      allOf:
+        - $ref: '#/components/schemas/CourseId'
+        - $ref: '#/components/schemas/CourseProperties'
+        - type: object
+          properties:
+            validFrom:
+              type:
+                - string
+                - 'null'
+              format: date-time
+            validTo:
+              type:
+                - string
+                - 'null'
+              format: date-time
+
+    # --------------------------------------------------------------------
+    #   Programme
+    # --------------------------------------------------------------------
+    ProgrammeId:
+      type: object
+      description: Unique identifier for a programme
+      required:
+        - programmeId
+      properties:
+        programmeId:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+
+    ProgrammeProperties:
+      type: object
+      description: Core metadata of a programme
+      required:
+        - programmeType
+        - name
+        - primaryCode
+      properties:
+        primaryCode:
+          $ref: '#/components/schemas/IdentifierEntry'
+        programmeType:
+          $ref: '#/components/schemas/programmeType'
+        name:
+          type: array
+          description: Programme titles
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/LanguageTypedString'
+          example:
+            - language: en-GB
+              value: Biology
+        abbreviation:
+          type:
+            - string
+            - 'null'
+          description: Short programme code
+          maxLength: 256
+          example: BIO
+        description:
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/LanguageTypedString'
+
+    Programme:
+      allOf:
+        - $ref: '#/components/schemas/ProgrammeId'
+        - $ref: '#/components/schemas/ProgrammeProperties'
+        - type: object
+          properties:
+            validFrom:
+              type:
+                - string
+                - 'null'
+              format: date-time
+            validTo:
+              type:
+                - string
+                - 'null'
+              format: date-time
+
+    # --------------------------------------------------------------------
+    #   Shared primitive / helper schemas
+    # --------------------------------------------------------------------
+    Identifier:
+      type: string
+      format: uuid
+      description: UUID of another OEAPI resource
+      example: 123e4567-e89b-12d3-a456-426614174000
+
+    Language:
+      type: string
+      description: RFC 5646 language tag (e.g. “en”, “en‑GB”, “nl‑sgn‑NL”)
+      pattern: ^(?:(?:[A-Za-z]{2,3}(?:-[A-Za-z]{3}){0,2}|[A-Za-z]{4}|[A-Za-z]{5,8})(?:-[A-Za-z]{4})?(?:-(?:[A-Z]{2}|[0-9]{3}))?(?:-(?:[A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*?(?:-(?:[A-WY-Za-wy-z0-9](?:-[A-Za-z0-9]{2,8})+))*?(?:-x(?:-[A-Za-z0-9]{1,8})+)?|x(?:-[A-Za-z0-9]{1,8})+)$
+      example: en-GB
+
+    LanguageTypedString:
+      type: object
+      required:
+        - language
+        - value
+      properties:
+        language:
+          $ref: '#/components/schemas/Language'
+        value:
+          type: string
+          description: Text value in the given language
+      example:
+        language: en-GB
+        value: Sample text
+
+    programmeType:
+      type: string
+      description: |
+        Type of programme (extensible). Typical values:
+        programme, minor, honours, specialisation, track, specification.
+      x-ooapi-extensible-enum:
+        - programme
+        - minor
+        - honours
+        - specialisation
+        - track
+        - specification
+      example: programme
+

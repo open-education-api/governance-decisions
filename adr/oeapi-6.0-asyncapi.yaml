@@ -1,0 +1,146 @@
+asyncapi: '2.6.0'
+info:
+  title: OEAPI – Async CloudEvent messages (AsyncAPI)
+  version: '6.0-rc.3-example'
+  description: |
+    AsyncAPI definition that models the same thin and thick CloudEvent messages
+    described in the webhook OpenAPI example. The specification follows the
+    CloudEvents 1.0 JSON format over HTTP (POST) and distinguishes between
+    *thin* events that only contain metadata (and a `dataref` URI) and *thick*
+    events that embed the full payload (Course or Programme).
+    The underlying resource schemas (Course, Programme, etc.) are reused from
+    the stripped OpenAPI spec `oeapi-6.0-stripped.yaml` via `$ref`.
+servers:
+  production:
+    url: https://demo01.eduapi.nl/v6/events
+    protocol: http
+    description: Production HTTP endpoint where OEAPI publishes CloudEvents.
+    security:
+      - apiKey: []
+components:
+  # securitySchemes:
+  #   apiKey:
+  #     type: apiKey
+  #     in: header
+  #     name: X-API-Key
+  schemas:
+    # Re‑use the Course and Programme schemas from the OpenAPI definition
+    Course:
+      $ref: './oeapi-6.0-stripped.yaml#/components/schemas/Course'
+    Programme:
+      $ref: './oeapi-6.0-stripped.yaml#/components/schemas/Programme'
+    ThinCloudEvent:
+      type: object
+      required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - payload
+        - dataref
+      properties:
+        specversion:
+          type: string
+          example: '1.0'
+        id:
+          type: string
+          format: uuid
+        source:
+          type: string
+          format: uri
+        type:
+          type: string
+        subject:
+          type: string
+          enum:
+            - eu.oeapi.programme.updated
+            - eu.oeapi.programme.deleted
+            - eu.oeapi.course.updated
+            - eu.oeapi.course.deleted
+        time:
+          type: string
+          format: date-time
+        payload:
+          type: string
+          enum:
+            - thin
+        dataref:
+          type: string
+          format: uri
+    ThickCloudEvent:
+      type: object
+      required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - payload
+        - data
+      properties:
+        specversion:
+          type: string
+          example: '1.0'
+        id:
+          type: string
+          format: uuid
+        source:
+          type: string
+          format: uri
+        type:
+          type: string
+        subject:
+          type: string
+        time:
+          type: string
+          format: date-time
+        payload:
+          type: string
+          enum:
+            - thick
+        data:
+          oneOf:
+            - $ref: '#/components/schemas/Course'
+            - $ref: '#/components/schemas/Programme'
+  messages:
+    ThinEventMessage:
+      name: ThinEventMessage
+      title: Thin CloudEvent notification (metadata only)
+      payload:
+        $ref: '#/components/schemas/ThinCloudEvent'
+      contentType: application/cloudevents+json
+      bindings:
+        http:
+          type: request
+          method: POST
+          bindingVersion: '0.2.0'
+        # CloudEvents binding is expressed via the payload itself (standard fields)
+    ThickEventMessage:
+      name: ThickEventMessage
+      title: Thick CloudEvent notification (payload included)
+      payload:
+        $ref: '#/components/schemas/ThickCloudEvent'
+      contentType: application/cloudevents+json
+      bindings:
+        http:
+          type: request
+          method: POST
+          bindingVersion: '0.2.0'
+channels:
+  thinEvent:
+    description: Channel for thin CloudEvent notifications (metadata only).
+    publish:
+      operationId: thinEventNotification
+      summary: Publish a thin CloudEvent
+      message:
+        $ref: '#/components/messages/ThinEventMessage'
+  thickEvent:
+    description: Channel for thick CloudEvent notifications (payload embedded).
+    publish:
+      operationId: thickEventNotification
+      summary: Publish a thick CloudEvent
+      message:
+        $ref: '#/components/messages/ThickEventMessage'
