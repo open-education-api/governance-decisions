@@ -1,10 +1,21 @@
 openapi: 3.1.1
 info:
-  title: OEAPI – Courses & Programmes (minimal example)
-  version: 6.0‑rc.3‑example
+  title: OEAPI - Courses & Programmes (minimal example)
+  version: 6.0-rc.3-example
   description: |
-    Minimal OEAPI example showing only the Course and Programme resources.
-    All other objects (learn‑components, buildings, groups, …) have been omitted.
+    Minimal OEAPI example showing only the Course and Programme resources,
+    plus the CloudEvents webhooks (thin, thick and feedback events).
+    All other objects (learn-components, buildings, groups, ...) have been omitted.
+
+    The webhooks describe what the SENDER of an event POSTs to a URL that the
+    RECEIVER has registered (out of band, see adr/0007-attachments/delivery-and-registration.md):
+
+    - `thinEvent` and `thickEvent`: source system (or intermediary) -> consumer endpoint.
+    - `feedbackEvent`: consumer -> feedback endpoint of the source system (or intermediary).
+
+    The URLs of the webhooks are NOT part of this contract. They are configured per
+    consumer, together with credentials, event types and (for the data fetch) the
+    OEAPI version and consumer to put in the `Accept` header.
 servers:
   - url: https://demo01.eduapi.nl/v6
 paths:
@@ -84,6 +95,52 @@ paths:
               schema:
                 $ref: '#/components/schemas/Programme'
 components:
+  securitySchemes:
+    eventsOAuth2:
+      type: oauth2
+      description: |
+        OAuth 2.0 client credentials. The receiver of a webhook call validates the
+        access token of the sender. Token endpoint and scopes are agreed out of band.
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.org/oauth2/token
+          scopes:
+            oeapi.events.write: Deliver OEAPI events and feedback
+  responses:
+    Accepted:
+      description: |
+        Event accepted for asynchronous processing. This only says the event has been
+        received. It says nothing about the processing result (see feedback events).
+        `200` is also accepted by senders.
+    BadRequest:
+      description: The event is not a valid CloudEvent or violates the OEAPI event rules.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: Missing or invalid access token.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    PayloadTooLarge:
+      description: The event is larger than the receiver accepts (the NL GOV profile recommends a maximum of 64 KB).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    TooManyRequests:
+      description: The sender MUST retry later and SHOULD honour `Retry-After`.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
   schemas:
     # --------------------------------------------------------------------
     #   Identifier objects
@@ -96,10 +153,10 @@ components:
       properties:
         codeType:
           type: string
-          description: Type of the identifier (e.g. “identifier”, “programmeCode”, …)
+          description: Type of the identifier (e.g. "identifier", "programmeCode", ...)
         code:
           type: string
-          description: Human‑readable value of the identifier
+          description: Human-readable value of the identifier
       example:
         codeType: identifier
         code: 1234qwe12
@@ -139,7 +196,7 @@ components:
           type:
             - string
             - 'null'
-          description: Short internal code (ECTS‑code)
+          description: Short internal code (ECTS-code)
           maxLength: 256
           example: INFOMQNM
         description:
@@ -243,7 +300,7 @@ components:
 
     Language:
       type: string
-      description: RFC 5646 language tag (e.g. “en”, “en‑GB”, “nl‑sgn‑NL”)
+      description: RFC 5646 language tag (e.g. "en", "en-GB", "nl-sgn-NL")
       pattern: ^(?:(?:[A-Za-z]{2,3}(?:-[A-Za-z]{3}){0,2}|[A-Za-z]{4}|[A-Za-z]{5,8})(?:-[A-Za-z]{4})?(?:-(?:[A-Z]{2}|[0-9]{3}))?(?:-(?:[A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*?(?:-(?:[A-WY-Za-wy-z0-9](?:-[A-Za-z0-9]{2,8})+))*?(?:-x(?:-[A-Za-z0-9]{1,8})+)?|x(?:-[A-Za-z0-9]{1,8})+)$
       example: en-GB
 
@@ -275,8 +332,29 @@ components:
         - track
         - specification
       example: programme
-    ThinCloudEvent:
+
+    Problem:
       type: object
+      description: Problem details (RFC 9457)
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+
+    # --------------------------------------------------------------------
+    #   CloudEvents envelope (shared by thin, thick and feedback events)
+    # --------------------------------------------------------------------
+    CloudEventEnvelope:
+      type: object
+      description: |
+        CloudEvents 1.0 context attributes in JSON format (structured content mode,
+        `application/cloudevents+json`). Extension attributes are lowercase a-z/0-9, max 20 characters.
       required:
         - specversion
         - id
@@ -292,59 +370,72 @@ components:
         id:
           type: string
           format: uuid
+          description: UUID of this event. Unique per source. Reused when the same event is redelivered.
         source:
           type: string
           format: uri
+          description: Identifier of the system that produced the event, e.g. https://example-university.fr/sis/prod
         type:
           type: string
+          description: Event type, see the concrete event schemas for the pattern.
         subject:
           type: string
+          format: uuid
+          description: UUID of the OEAPI entity this event is about.
         time:
           type: string
-          format: date-time
+          description: Moment of occurrence, RFC 3339 in UTC with milliseconds.
+          pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$
+          example: '2026-10-06T13:00:00.123Z'
         payloadtype:
           type: string
+          description: "OEAPI extension attribute: `thin` (no data), `thick` (data included)."
           enum:
             - thin
-        dataref:
-          type: string
-          format: uri
-    ThickCloudEvent:
-      type: object
-      required:
-        - specversion
-        - id
-        - source
-        - type
-        - subject
-        - time
-        - payloadtype
-        - data
-      properties:
-        specversion:
-          type: string
-          example: '1.0'
-        id:
-          type: string
-          format: uuid
-        source:
-          type: string
-          format: uri
-        type:
-          type: string
-        subject:
-          type: string
-        time:
-          type: string
-          format: date-time
-        payloadtype:
-          type: string
-          enum:
             - thick
-        data:
-          oneOf:
-            - $ref: '#/components/schemas/Course'
-            - $ref: '#/components/schemas/Programme'
+
+    ThinCloudEvent:
+      description: Signals that an entity changed. The receiver SHOULD fetch the current state.
+      allOf:
+        - $ref: '#/components/schemas/CloudEventEnvelope'
+        - type: object
+          properties:
+            type:
+              type: string
+              pattern: ^eu\.oeapi\.[a-z0-9-]+\.(updated|deleted)\.v[0-9]+$
+              example: eu.oeapi.programmes.updated.v1
+            payloadtype:
+              const: thin
+            dataref:
+              type: string
+              format: uri
+              description: |
+                Optional URL of the entity at the source. Consumer and OEAPI version are NOT
+                part of it; they follow from the subscription and are sent in the `Accept` header.
+          not:
+            required:
+              - data
+
+    ThickCloudEvent:
+      description: Carries the data of the changed entity. `dataref` MUST NOT be used.
+      allOf:
+        - $ref: '#/components/schemas/CloudEventEnvelope'
+        - type: object
+          required:
+            - data
+          properties:
+            type:
+              type: string
+              pattern: ^eu\.oeapi\.[a-z0-9-]+\.(updated|deleted)\.v[0-9]+$
+              example: eu.oeapi.programmes.updated.v1
+            payloadtype:
+              const: thick
+            data:
+              oneOf:
+                - $ref: '#/components/schemas/Course'
+                - $ref: '#/components/schemas/Programme'
+
+
     # --------------------------------------------------------------------
     #   Feedback event schemas
     # --------------------------------------------------------------------
@@ -364,8 +455,10 @@ components:
         content:
           type: array
           description: Localised message strings
+          minItems: 1
           items:
             $ref: '#/components/schemas/LanguageTypedString'
+
     FeedbackData:
       type: object
       required:
@@ -373,7 +466,9 @@ components:
       properties:
         type:
           type: string
-          description: Feedback status type
+          description: |
+            Feedback status. `status_update` is non-final, the others are final
+            (`rejected`, `failed`, `processed`).
           enum:
             - status_update
             - rejected
@@ -381,57 +476,92 @@ components:
             - processed
         messages:
           type: array
-          description: Array of messages (required for status_update and rejected)
+          description: |
+            Messages. At least one is required for `status_update` and `rejected`; the first
+            is then the main reason. `critical` messages only occur in `failed` and `rejected`.
           items:
             $ref: '#/components/schemas/FeedbackMessage'
+      allOf:
+        - if:
+            properties:
+              type:
+                enum:
+                  - status_update
+                  - rejected
+          then:
+            required:
+              - messages
+            properties:
+              messages:
+                minItems: 1
+        - if:
+            properties:
+              type:
+                enum:
+                  - status_update
+                  - processed
+          then:
+            properties:
+              messages:
+                items:
+                  properties:
+                    type:
+                      enum:
+                        - warning
+                        - tracing
+
     FeedbackEvent:
-      type: object
-      required:
-        - specversion
-        - id
-        - source
-        - type
-        - subject
-        - time
-        - payloadtype
-        - data
-      properties:
-        specversion:
-          type: string
-          example: '1.0'
-        id:
-          type: string
-          format: uuid
-        source:
-          type: string
-          format: uri
-          description: URI of the system generating the feedback
-        type:
-          type: string
-          description: Event type, e.g. "eu.oeapi.programmes.feedbackprovided"
-        subject:
-          type: string
-          description: UUID of the entity this feedback is about
-        correlationid:
-          type: string
-          format: uuid
-          description: ID of the thin event this feedback applies to (optional)
-        correlationsource:
-          type: string
-          format: uri
-          description: Source of the thin event this feedback applies to
-        time:
-          type: string
-          format: date-time
-        payloadtype:
-          type: string
-          enum:
-            - thick
-        data:
-          $ref: '#/components/schemas/FeedbackData'
+      description: |
+        Feedback on the processing of an event or entity, sent by the consumer to the
+        feedback endpoint of the source (or intermediary).
+      allOf:
+        - $ref: '#/components/schemas/CloudEventEnvelope'
+        - type: object
+          required:
+            - data
+          properties:
+            type:
+              type: string
+              pattern: ^eu\.oeapi\.[a-z0-9-]+\.feedbackprovided\.v[0-9]+$
+              example: eu.oeapi.programmes.feedbackprovided.v1
+            source:
+              description: Identifier of the system that produced the feedback.
+            subject:
+              description: UUID of the entity this feedback is about.
+            correlationid:
+              type: string
+              format: uuid
+              description: |
+                `id` of the event this feedback applies to. Omit when the feedback is not about a
+                specific event (e.g. after a plain GET).
+            correlationsource:
+              type: string
+              format: uri
+              description: '`source` of the event this feedback applies to. Required when `correlationid` is present.'
+            payloadtype:
+              const: thick
+            data:
+              $ref: '#/components/schemas/FeedbackData'
+          dependentRequired:
+            correlationid:
+              - correlationsource
+          not:
+            required:
+              - dataref
+
 webhooks:
   thinEvent:
     post:
+      operationId: receiveThinEvent
+      summary: Receive a thin CloudEvent (metadata only)
+      description: |
+        Sent by the source (or intermediary) to the webhook the consumer registered.
+        The consumer deduplicates on `source` + `id` and fetches the entity (see `dataref`).
+      tags:
+        - events
+      security:
+        - eventsOAuth2:
+            - oeapi.events.write
       requestBody:
         description: Thin CloudEvent notification (metadata only)
         required: true
@@ -439,11 +569,40 @@ webhooks:
           application/cloudevents+json:
             schema:
               $ref: '#/components/schemas/ThinCloudEvent'
+            example:
+              specversion: '1.0'
+              id: 0f8fad5b-d9cb-469f-a165-70867728950e
+              source: https://example-university.fr/sis/prod
+              type: eu.oeapi.programmes.updated.v1
+              subject: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+              time: '2026-10-06T13:00:00.123Z'
+              payloadtype: thin
+              dataref: https://sis.example-university.fr/oeapi/v6/programmes/7c9e6679-7425-40de-944b-e07fc1f90ae7
       responses:
         '200':
           description: Acknowledgement
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   thickEvent:
     post:
+      operationId: receiveThickEvent
+      summary: Receive a thick CloudEvent (payload included)
+      description: |
+        Sent by the source (or intermediary) to the webhook the consumer registered.
+        The `data` is the entity as the consumer is entitled to receive it (consumer-specific projection).
+      tags:
+        - events
+      security:
+        - eventsOAuth2:
+            - oeapi.events.write
       requestBody:
         description: Thick CloudEvent notification (payload included)
         required: true
@@ -454,8 +613,28 @@ webhooks:
       responses:
         '200':
           description: Acknowledgement
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   feedbackEvent:
     post:
+      operationId: receiveFeedbackEvent
+      summary: Receive a feedback CloudEvent
+      description: |
+        Sent by the consumer to the feedback endpoint the source (or intermediary) registered.
+        Flows in the opposite direction of `thinEvent` and `thickEvent`.
+      tags:
+        - feedback
+      security:
+        - eventsOAuth2:
+            - oeapi.events.write
       requestBody:
         description: Feedback CloudEvent sent back to the source system
         required: true
@@ -466,3 +645,13 @@ webhooks:
       responses:
         '200':
           description: Acknowledgement
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
